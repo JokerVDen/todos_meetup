@@ -1,0 +1,53 @@
+version: '3.7'
+services:
+  nginx:
+    build:
+      context: ./
+      dockerfile: ./docker/nginx.docker
+      args:
+        DOMAIN_NAME: ${DOCKER_NGINX_DOMAIN_NAME}
+    depends_on:
+      - php-fpm
+    volumes:
+      - ./:/var/www
+      - ./docker/tmp/nginx:/var/log/nginx
+    ports:
+      - "${HTTP_PORT_DOCKER}:${HTTP_PORT}"
+  php-fpm:
+    build:
+      context: ./
+      dockerfile: ./docker/php-fpm.docker
+    volumes:
+      - ./:/var/www
+      - ./docker/php/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+    working_dir: /var/www
+    user: "${LINUX_UID}:${LINUX_GID}"
+    environment:
+      DB_PORT: ${DB_PORT}
+      DB_HOST: ${DB_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_HOST: redis
+      COMPOSER_MEMORY_LIMIT: -1
+  mariadb:
+    image: mariadb:10.5
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    logging:
+      driver: syslog
+      options:
+        tag: "{{.DaemonName}}(image={{.ImageName}};name={{.Name}};id={{.ID}})"
+    user: "${LINUX_UID}:${LINUX_GID}"
+    ports:
+      - "${DB_PORT_DOCKER}:${DB_PORT}"
+    volumes:
+      - ./docker/tmp/mysql:/var/lib/mysql
+  node:
+    image: node:14.4.0-alpine3.10
+    user: "${LINUX_UID}:${LINUX_GID}"
+    volumes:
+      - ./:/var/www
+    working_dir: /var/www
+    tty: true
